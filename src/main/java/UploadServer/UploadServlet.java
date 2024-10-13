@@ -1,7 +1,12 @@
 package UploadServer;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
 public class UploadServlet extends HttpServlet {
    public static final String CRLF = "\r\n";
 
@@ -40,35 +45,118 @@ public class UploadServlet extends HttpServlet {
       }
    }
 
-   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
-      try {
-         InputStream in = request.getInputStream();   
-         ByteArrayOutputStream baos = new ByteArrayOutputStream();  
-         byte[] content = new byte[1];
-         int bytesRead = -1;
+   @Override
+   protected void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
 
-         while( ( bytesRead = in.read( content ) ) != -1 ) {  
-            baos.write( content, 0, bytesRead );  
+      System.out.println("start processing form");
+
+      Map<String, String> fields = new HashMap<>();
+      InputStream inputStream = req.getInputStream();
+
+      byte[] content = new byte[1];
+      StringBuilder lineBuilder = new StringBuilder();
+      String line;
+      boolean hitDataPart = false;
+      int bytesRead = -1;
+
+      while((bytesRead = inputStream.read(content)) != -1){
+         if(hitDataPart){
+            char garbage = (char) inputStream.read();
+            while(garbage != '\n'){
+               garbage = (char) inputStream.read();
+            }
+            break;
          }
-
-         Clock clock = Clock.systemDefaultZone();
-         long milliSeconds=clock.millis();
-
-         OutputStream outputStream = new FileOutputStream(new File(String.valueOf(milliSeconds) + ".png"));
-         // baos.writeTo(outputStream);
-         outputStream.close();
-
-         PrintWriter out = new PrintWriter(response.getOutputStream(), true);
-         File dir = new File(".");
-         String[] chld = dir.list();
-
-      	 for(int i = 0; i < chld.length; i++) {
-            String fileName = chld[i];
-            out.println(fileName+"\n");
-            System.out.println(fileName);
+         else{
+            char c = (char)content[0];
+            if(c != '\n')
+               lineBuilder.append(c);
+            else{
+               line = lineBuilder.toString();
+               lineBuilder = new StringBuilder();
+               if(line.startsWith("Content-Disposition:")){
+                  String[] name = line.split("\"");
+                  String field = name[1];
+                  if(field.equals("fileName")){
+                     fields.put(field, name[3]);
+                     hitDataPart = true;
+                  } else{
+                     inputStream.read();
+                     inputStream.read();
+                     char temp = (char) inputStream.read();
+                     StringBuilder valueBuilder = new StringBuilder();
+                     while(temp != '\n'){
+                        valueBuilder.append(temp);
+                        temp = (char)inputStream.read();
+                     }
+                     fields.put(field, valueBuilder.toString());
+                  }
+               }else if(line.startsWith("Content-Type: multipart/form-data")){
+                  String boundary = line.split("boundary=")[1];
+                  fields.put("boundary", boundary);
+               }
+            }
          }
-      } catch(Exception ex) {
-         System.err.println(ex);
+      }
+
+      inputStream.read();
+      inputStream.read();
+
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+      byte[] lineBuffer = new byte[4096];
+      int index = 0;
+      StringBuilder builder = new StringBuilder();
+
+      while ((bytesRead = inputStream.read(content)) != -1) {
+         char newLine = (char) content[0];
+
+         if (newLine == '\n' && index != 0) {
+            // Convert the line buffer to a string
+            String currentLine = builder.toString().trim();
+            String boundary = fields.get("boundary");
+
+            // Clear the builder for the next line
+            builder = new StringBuilder();
+
+
+            // Check if this line contains the boundary
+            if (compareBoundary(currentLine, boundary)) {
+               System.out.println("Reached boundary, stop writing data");
+               break;
+            } else {
+               baos.write(lineBuffer, 0, index);
+               index = 0; // Reset index for the next line
+            }
+         } else if(newLine != '\n'){
+            // Append to builder for boundary checking
+            builder.append(newLine);
+            // Continue accumulating data into the lineBuffer
+            lineBuffer[index++] = content[0];
+         }
+      }
+
+
+      OutputStream outputStream = new FileOutputStream(new File(fields.get("fileName")));
+      baos.writeTo(outputStream);
+      outputStream.close();
+   }
+
+   private boolean compareBoundary(String a, String b) {
+      // Normalize and trim both strings to ensure no extra spaces or newline characters
+      String normalizedA = a.trim().replaceAll("\\s+", "").replaceAll("-", "");
+      String normalizedB = b.trim().replaceAll("\\s+", "").replaceAll("-", "");
+
+      System.out.println("Comparing two strings: '" + normalizedA + "' and '" + normalizedB + "'");
+
+      if (normalizedA.contains(normalizedB)) {
+         System.out.println("should be true");
+         return true;
+      } else {
+         System.out.println("should be false");
+         return false;
       }
    }
+
+
 }

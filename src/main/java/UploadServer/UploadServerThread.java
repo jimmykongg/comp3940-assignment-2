@@ -13,22 +13,23 @@ public class UploadServerThread extends Thread {
 
    public void run() {
       try {
+
          InputStream in = socket.getInputStream();
          OutputStream out = socket.getOutputStream();
 
-         HttpServlet httpServlet = new UploadServlet();
+         StringBuilder firstLine = new StringBuilder();
+         char c;
+         while((c = (char) in.read()) != '\n'){
+            firstLine.append(c);
+         }
 
-         /*
-            Convert socket input stream into a BufferedInputStream
-            so that we could use readLine() method to read the first line of incoming HTTP request
-          */
-         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+         System.out.println(firstLine);
+
          String requestLine;
-         String responseLine;
          String httpMethod = "";
 
          // Read the first line of HTTP request
-         requestLine = reader.readLine();
+         requestLine = firstLine.toString();
 
          // Parse HTTP method from the request line
          if (requestLine != null && !requestLine.isEmpty()) {
@@ -43,17 +44,16 @@ public class UploadServerThread extends Thread {
             System.out.println("No request line received");
          }
 
-         if (httpMethod.equals("GET")) {
-            HttpServletRequest req = new HttpServletRequest(in);
-            HttpServletResponse res = new HttpServletResponse(out);
+         HttpServlet httpServlet = new UploadServlet();
+         HttpServletRequest req = new HttpServletRequest(in);
+         HttpServletResponse res = new HttpServletResponse(out);
 
-            httpServlet.doGet(req, res);
+         if (httpMethod.equals("GET"))  httpServlet.doGet(req, res);
+         else{
+            httpServlet.doPost(req, res);
          }
 
-         // OutputStream baos = new ByteArrayOutputStream();
-         // HttpServletResponse res = new HttpServletResponse(baos);
-         // httpServlet.doPost(req, res);
-         // out.write(((ByteArrayOutputStream) baos).toByteArray());
+
          socket.close();
       } catch (Exception e) { e.printStackTrace(); }
    }
