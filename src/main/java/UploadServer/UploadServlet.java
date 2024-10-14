@@ -2,6 +2,7 @@ package UploadServer;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidParameterException;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -49,37 +50,6 @@ public class UploadServlet extends HttpServlet {
    static final String CONTENT_TYPE = "Content-Type: multipart/form-data; boundary=";
    static final String CONTENT_DISPOSITION_FILENAME="Content-Disposition: form-data; name=\"fileName\"; filename=\"";
    static final String CONTENT_DISPOSITION_FIELDS = "Content-Disposition: form-data; name=\"";
-
-   /**
-    * Read bytes from inputStream until meet \n char
-    * @param is
-    * @return
-    * @throws IOException
-    */
-   private byte[] readByteLine(InputStream is) throws IOException {
-      ByteArrayOutputStream buf = new ByteArrayOutputStream();
-      int c;
-      while ( (c = is.read()) >= 0 )
-      {
-         buf.write(c);
-         if (c == '\n') break;
-      }
-      return buf.toByteArray();
-   }
-
-   /**
-    * judge byte array start with another byte array or not
-    * @param src
-    * @param find
-    * @return true
-    */
-   private boolean startsWith(byte[] src, byte[] find) {
-      if( src.length < find.length ) return false;
-      for(int i=0;i<find.length;i++) {
-         if( find[i] != src[i] ) return false;
-      }
-      return true;
-   }
 
    @Override
    protected void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
@@ -152,5 +122,80 @@ public class UploadServlet extends HttpServlet {
       // we need skip last 2 chars, \r\n, that is start the end boundary line.
       fos.write(contentBytes, 0, contentBytes.length - 2);
       fos.close();
+
+      // File process finish. Set the existing file in the file system
+      // as response.
+      System.out.println("Returning files in fileSystem in HTML");
+
+      String htmlContent = filenamesToString("FileSystem");
+      int contentLength = htmlContent.getBytes("UTF-8").length;
+      String headers = "HTTP/1.1 200 OK" + CRLF +
+              "Content-Type: text/html; charset=UTF-8" + CRLF +
+              "Content-Length: " + contentLength + CRLF +
+              "Connection: close" + CRLF + CRLF;
+      String htmlResponse = headers + htmlContent + CRLF + CRLF;
+      OutputStream out = res.getOutputStream();
+      out.write(htmlResponse.getBytes("UTF-8"));
+
+      System.out.println("Post Ends");
    }
+
+
+   /**
+    * Read bytes from inputStream until meet \n char
+    * @param is
+    * @return
+    * @throws IOException
+    */
+   private byte[] readByteLine(InputStream is) throws IOException {
+      ByteArrayOutputStream buf = new ByteArrayOutputStream();
+      int c;
+      while ( (c = is.read()) >= 0 )
+      {
+         buf.write(c);
+         if (c == '\n') break;
+      }
+      return buf.toByteArray();
+   }
+
+   /**
+    * judge byte array start with another byte array or not
+    * @param src
+    * @param find
+    * @return true
+    */
+   private boolean startsWith(byte[] src, byte[] find) {
+      if( src.length < find.length ) return false;
+      for(int i=0;i<find.length;i++) {
+         if( find[i] != src[i] ) return false;
+      }
+      return true;
+   }
+
+   /**
+    *  builder the htmlContent based on the filenames in the folder
+    * @param folder path to the file system
+    * @return htmlContent in String format
+    */
+   private String filenamesToString(String folder){
+      File dir = new File(folder);
+      if(!dir.exists()) throw new InvalidParameterException("Directory doesn't exist");
+      String[] fileList = dir.list();
+      if(fileList != null) Arrays.sort(fileList);
+
+      StringBuilder htmlContent = new StringBuilder();
+      htmlContent.append("<!DOCTYPE html>")
+              .append("<html><body>")
+              .append("<a href=\"http://localhost:8999\">&larr; Upload File</a>")
+              .append("<h2>Uploaded Files</h2>")
+              .append("<ul>");
+      for(String file : fileList){
+         htmlContent.append("<li>").append(file).append("</li>");
+      }
+      htmlContent.append("</ul>")
+              .append("</body></html>");
+
+      return htmlContent.toString();
+   }
+
 }
