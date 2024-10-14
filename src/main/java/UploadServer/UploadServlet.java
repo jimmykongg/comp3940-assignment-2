@@ -45,118 +45,112 @@ public class UploadServlet extends HttpServlet {
       }
    }
 
+
+   static final String CONTENT_TYPE = "Content-Type: multipart/form-data; boundary=";
+   static final String CONTENT_DISPOSITION_FILENAME="Content-Disposition: form-data; name=\"fileName\"; filename=\"";
+   static final String CONTENT_DISPOSITION_FIELDS = "Content-Disposition: form-data; name=\"";
+
+   /**
+    * Read bytes from inputStream until meet \n char
+    * @param is
+    * @return
+    * @throws IOException
+    */
+   private byte[] readByteLine(InputStream is) throws IOException {
+      ByteArrayOutputStream buf = new ByteArrayOutputStream();
+      int c;
+      while ( (c = is.read()) >= 0 )
+      {
+         buf.write(c);
+         if (c == '\n') break;
+      }
+      return buf.toByteArray();
+   }
+
+   /**
+    * judge byte array start with another byte array or not
+    * @param src
+    * @param find
+    * @return true
+    */
+   private boolean startsWith(byte[] src, byte[] find) {
+      if( src.length < find.length ) return false;
+      for(int i=0;i<find.length;i++) {
+         if( find[i] != src[i] ) return false;
+      }
+      return true;
+   }
+
    @Override
    protected void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
 
       System.out.println("start processing form");
 
-      Map<String, String> fields = new HashMap<>();
       InputStream inputStream = req.getInputStream();
+      byte[] line;
+      String boundary = null;
+      StringBuilder endBoundary = new StringBuilder();
+      String caption = null;
+      String date = null;
+      String filename = null;
+      ByteArrayOutputStream content = new ByteArrayOutputStream();
+      while( (line = readByteLine(inputStream)).length > 0 ) {
+         // get boundary
+         if( startsWith(line, CONTENT_TYPE.getBytes()) ) {
+            boundary = new String(line, CONTENT_TYPE.length(), line.length - CONTENT_TYPE.length() - 2);
+            // last line should add -- at the begin and end of boundary
+            endBoundary.append("--").append(boundary).append("--");
+         } else {
 
-      byte[] content = new byte[1];
-      StringBuilder lineBuilder = new StringBuilder();
-      String line;
-      boolean hitDataPart = false;
-      int bytesRead = -1;
-
-      while((bytesRead = inputStream.read(content)) != -1){
-         if(hitDataPart){
-            char garbage = (char) inputStream.read();
-            while(garbage != '\n'){
-               garbage = (char) inputStream.read();
-            }
-            break;
-         }
-         else{
-            char c = (char)content[0];
-            if(c != '\n')
-               lineBuilder.append(c);
-            else{
-               line = lineBuilder.toString();
-               lineBuilder = new StringBuilder();
-               if(line.startsWith("Content-Disposition:")){
-                  String[] name = line.split("\"");
-                  String field = name[1];
-                  if(field.equals("fileName")){
-                     fields.put(field, name[3]);
-                     hitDataPart = true;
-                  } else{
-                     inputStream.read();
-                     inputStream.read();
-                     char temp = (char) inputStream.read();
-                     StringBuilder valueBuilder = new StringBuilder();
-                     while(temp != '\n'){
-                        valueBuilder.append(temp);
-                        temp = (char)inputStream.read();
-                     }
-                     fields.put(field, valueBuilder.toString());
-                  }
-               }else if(line.startsWith("Content-Type: multipart/form-data")){
-                  String boundary = line.split("boundary=")[1];
-                  fields.put("boundary", boundary);
+            if( (boundary != null) && startsWith(line, CONTENT_DISPOSITION_FILENAME.getBytes()) ) {
+               // get upload filename, here fix the input name with "filename"
+               filename = new String(line, CONTENT_DISPOSITION_FILENAME.length(), line.length - CONTENT_DISPOSITION_FILENAME.length() - 3);
+               // after here we need skip 2 lines
+               readByteLine(inputStream);
+               readByteLine(inputStream);
+            } else if( (boundary != null) && startsWith(line, CONTENT_DISPOSITION_FIELDS.getBytes()) ) {
+               // get the type name, caption or date.
+               String fieldType = new String(line, CONTENT_DISPOSITION_FIELDS.length(), line.length - CONTENT_DISPOSITION_FIELDS.length() - 3);
+               // skip the next empty line
+               readByteLine(inputStream);
+               // get the value for the field
+               byte[] fieldValue = readByteLine(inputStream);
+               // assign the value of field based on the fieldType
+               switch(fieldType){
+                  case "caption" :
+                     caption = new String(fieldValue, 0, fieldValue.length - 2);break;
+                  case "date" :
+                     date = new String(fieldValue, 0, fieldValue.length - 2);break;
+               }
+            }  else if ((boundary != null) && (filename != null)) {
+               // here is upload file content part
+               if( !startsWith(line, endBoundary.toString().getBytes()) ) {
+                  // here is file content
+                  content.write(line);
+               } else {
+                  // we got the end boundary
+                  break;
                }
             }
          }
       }
 
-      inputStream.read();
-      inputStream.read();
+      System.out.println("Form process complete.");
+      System.out.println("Caption: " + caption);
+      System.out.println("Date: " + date);
+      System.out.println("Filename: " + filename);
 
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-      byte[] lineBuffer = new byte[4096];
-      int index = 0;
-      StringBuilder builder = new StringBuilder();
-
-      while ((bytesRead = inputStream.read(content)) != -1) {
-         char newLine = (char) content[0];
-
-         if (newLine == '\n' && index != 0) {
-            // Convert the line buffer to a string
-            String currentLine = builder.toString().trim();
-            String boundary = fields.get("boundary");
-
-            // Clear the builder for the next line
-            builder = new StringBuilder();
-
-
-            // Check if this line contains the boundary
-            if (compareBoundary(currentLine, boundary)) {
-               System.out.println("Reached boundary, stop writing data");
-               break;
-            } else {
-               baos.write(lineBuffer, 0, index);
-               index = 0; // Reset index for the next line
-            }
-         } else if(newLine != '\n'){
-            // Append to builder for boundary checking
-            builder.append(newLine);
-            // Continue accumulating data into the lineBuffer
-            lineBuffer[index++] = content[0];
-         }
-      }
-
-
-      OutputStream outputStream = new FileOutputStream(new File(fields.get("fileName")));
-      baos.writeTo(outputStream);
-      outputStream.close();
+      String newFileName = caption + "_" + date + "_" + filename;
+      File dir = new File("FileSystem");
+      if(!dir.exists()) dir.mkdir();
+      // output file content to local file
+      File f = new File(dir, newFileName);
+      // if file exists, delete first
+      if( f.exists() ) f.delete();
+      FileOutputStream fos = new FileOutputStream(f);
+      byte[] contentBytes = content.toByteArray();
+      // we need skip last 2 chars, \r\n, that is start the end boundary line.
+      fos.write(contentBytes, 0, contentBytes.length - 2);
+      fos.close();
    }
-
-   private boolean compareBoundary(String a, String b) {
-      // Normalize and trim both strings to ensure no extra spaces or newline characters
-      String normalizedA = a.trim().replaceAll("\\s+", "").replaceAll("-", "");
-      String normalizedB = b.trim().replaceAll("\\s+", "").replaceAll("-", "");
-
-      System.out.println("Comparing two strings: '" + normalizedA + "' and '" + normalizedB + "'");
-
-      if (normalizedA.contains(normalizedB)) {
-         System.out.println("should be true");
-         return true;
-      } else {
-         System.out.println("should be false");
-         return false;
-      }
-   }
-
-
 }
