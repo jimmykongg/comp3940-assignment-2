@@ -90,7 +90,7 @@ public class UploadAsyncTask extends AsyncTask {
 
     @Override
     protected void onPostExecute(String result) {
-        System.out.println("Upload sucessful");
+        System.out.println("Upload done");
         System.out.println("Upload Result: " + result);
     }
 }
