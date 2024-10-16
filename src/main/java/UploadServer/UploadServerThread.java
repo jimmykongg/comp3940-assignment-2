@@ -3,17 +3,19 @@ package UploadServer;
 import java.net.*;
 import java.io.*;
 import java.time.Clock;
+
 public class UploadServerThread extends Thread {
    private Socket socket = null;
 
    public UploadServerThread(Socket socket) {
-      super("DirServerThread");
+      super("UploadServerThread");
+      System.out.println("ServerSocket: accept");
       this.socket = socket;
    }
 
    public void run() {
       try {
-
+         System.out.println("UploadServerThread: run");
          InputStream in = socket.getInputStream();
          OutputStream out = socket.getOutputStream();
 
@@ -22,8 +24,6 @@ public class UploadServerThread extends Thread {
          while((c = (char) in.read()) != '\n'){
             firstLine.append(c);
          }
-
-         System.out.println(firstLine);
 
          String requestLine;
          String httpMethod = "";
@@ -36,7 +36,6 @@ public class UploadServerThread extends Thread {
             String[] parts = requestLine.split(" ");
             if (parts.length > 0) {
                httpMethod = parts[0];
-               System.out.println(httpMethod);
             } else {
                System.out.println("Invalid request line");
             }
@@ -49,13 +48,18 @@ public class UploadServerThread extends Thread {
          try {
             uploadServletClass = Class.forName("UploadServer.UploadServlet");
             HttpServlet httpServlet = (HttpServlet) uploadServletClass.newInstance();
+            System.out.println("UploadServerThread: (HttpServlet) uploadServletClass.newInstance()");
 
             HttpServletRequest req = new HttpServletRequest(in);
             HttpServletResponse res = new HttpServletResponse(out);
 
-            if (httpMethod.equals("GET"))  httpServlet.doGet(req, res);
-            else{
+            if (httpMethod.equals("GET")) {
+               httpServlet.doGet(req, res);
+               System.out.println("HttpServlet: doGet");
+            }
+            else {
                httpServlet.doPost(req, res);
+               System.out.println("HttpServlet: doPost");
             }
          } catch (ClassNotFoundException e) {
             System.out.println(e);
