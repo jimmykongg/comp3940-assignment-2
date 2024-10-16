@@ -44,15 +44,22 @@ public class UploadServerThread extends Thread {
             System.out.println("No request line received");
          }
 
-         HttpServlet httpServlet = new UploadServlet();
-         HttpServletRequest req = new HttpServletRequest(in);
-         HttpServletResponse res = new HttpServletResponse(out);
+         // use Java Reflection to dynamically compile the FileUploadServlet
+         Class<?> uploadServletClass;
+         try {
+            uploadServletClass = Class.forName("UploadServer.UploadServlet");
+            HttpServlet httpServlet = (HttpServlet) uploadServletClass.newInstance();
 
-         if (httpMethod.equals("GET"))  httpServlet.doGet(req, res);
-         else{
-            httpServlet.doPost(req, res);
+            HttpServletRequest req = new HttpServletRequest(in);
+            HttpServletResponse res = new HttpServletResponse(out);
+
+            if (httpMethod.equals("GET"))  httpServlet.doGet(req, res);
+            else{
+               httpServlet.doPost(req, res);
+            }
+         } catch (ClassNotFoundException e) {
+            System.out.println(e);
          }
-
 
          socket.close();
       } catch (Exception e) { e.printStackTrace(); }
