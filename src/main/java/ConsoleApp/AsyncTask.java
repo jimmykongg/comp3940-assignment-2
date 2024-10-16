@@ -1,11 +1,11 @@
 package ConsoleApp;
 
 public abstract class AsyncTask {
-   AsyncTask execute() { 
+   AsyncTask execute() {
       this.onPreExecute();
       new WorkerThread(this).start();
       return this;
-   }    
+   }
    protected abstract String doInBackground();
    protected void onPreExecute() {
    }
