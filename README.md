@@ -38,3 +38,11 @@ Once the file upload server is running, use any web browser you prefer to visit 
 http://localhost:8999
 ```
 This will generate a HTML form for you to upload your file and then list all the files from FileSystem directory
+
+## Credit and work split
+- File upload server
+   - Jimmy Kong: HTTP Get Request, Java reflection, README.md
+   - Ziqi Liu: HTTP Post Request, Alphabetically sorted file listing
+
+- Console app client
+  - Henry Tan, Steven Ly, Victor Wong: Collaborative work on all the parts of native client app
