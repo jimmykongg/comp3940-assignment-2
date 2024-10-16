@@ -29,7 +29,6 @@ public class UploadAsyncTask extends AsyncTask {
         BufferedReader reader = null;
 
         try {
-            // Create the connection
             URL url = new URL(uploadURL);
             connection = (HttpURLConnection) url.openConnection();
             connection.setDoOutput(true);
@@ -57,7 +56,6 @@ public class UploadAsyncTask extends AsyncTask {
             dos.writeBytes("Content-Disposition: form-data; name=\"fileName\"; filename=\"" + fileToUpload.getName() + "\"\r\n");
             dos.writeBytes("Content-Type: application/octet-stream\r\n\r\n");
 
-            // Correctly instantiate the FileInputStream using the fileToUpload
             try (FileInputStream fileInputStream = new FileInputStream(fileToUpload)) {
                 byte[] buffer = new byte[4096];
                 int bytesRead;
@@ -90,9 +88,9 @@ public class UploadAsyncTask extends AsyncTask {
     }
 }
 
-@Override
-protected void onPostExecute(String result) {
-    System.out.println("Upload sucessful");
-    System.out.println("Upload Result: " + result);
-}
+    @Override
+    protected void onPostExecute(String result) {
+        System.out.println("Upload sucessful");
+        System.out.println("Upload Result: " + result);
+    }
 }
