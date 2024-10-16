@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+@WebServlet("/upload")
 public class UploadServlet extends HttpServlet {
    public static final String CRLF = "\r\n";
 
@@ -21,7 +22,7 @@ public class UploadServlet extends HttpServlet {
                  "<html>" +
                  "<body>" +
                  "<h2>HTML Forms</h2>" +
-                 "<form action=\"http://localhost:8999/upload\" method=\"post\" enctype=\"multipart/form-data\">" +
+                 "<form action=\"http://localhost:8999\" method=\"post\" enctype=\"multipart/form-data\">" +
                  "Caption: <input type=\"text\" name=\"caption\" /><br /><br />" +
                  "Date: <input type=\"date\" name=\"date\" /><br />" +
                  "<input type=\"file\" name=\"fileName\" /><br /><br />" +
@@ -65,7 +66,6 @@ public class UploadServlet extends HttpServlet {
       String caption = null;
       String date = null;
       String filename = null;
-      boolean uploadSuccess = true;
       ByteArrayOutputStream content = new ByteArrayOutputStream();
       while( (line = readByteLine(inputStream)).length > 0 ) {
          // get boundary

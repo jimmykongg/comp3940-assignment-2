@@ -101,7 +101,6 @@ public class UploadClient {
             // Get result from response
             result = response.toString();
 
-
             // Check for successful response (HTTP 200 OK)
             int responseCode = connection.getResponseCode();
             if (responseCode == HttpURLConnection.HTTP_OK) {
