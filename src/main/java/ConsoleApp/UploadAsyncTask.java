@@ -1,11 +1,8 @@
 package ConsoleApp;
 
-
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Date;
-
 
 public class UploadAsyncTask extends AsyncTask {
     private String uploadURL;
@@ -20,7 +17,6 @@ public class UploadAsyncTask extends AsyncTask {
         this.filePath = filePath; // Set the file path in the constructor
         System.out.println("Upload URL: " + uploadUrl);
     }
-
 
     @Override
     protected String doInBackground() {
@@ -41,21 +37,23 @@ public class UploadAsyncTask extends AsyncTask {
 
             // Writing the multipart/form-data to the output stream
             dos = new DataOutputStream(connection.getOutputStream());
+
             // Write the caption
-            dos.writeBytes(boundary + "\r\n");
+            dos.writeBytes("--" + boundary + "\r\n");
             dos.writeBytes("Content-Disposition: form-data; name=\"caption\"\r\n\r\n");
             dos.writeBytes(caption + "\r\n");
 
             // Write the date
-            dos.writeBytes(boundary + "\r\n");
+            dos.writeBytes("--" + boundary + "\r\n");
             dos.writeBytes("Content-Disposition: form-data; name=\"date\"\r\n\r\n");
             dos.writeBytes(date + "\r\n");
 
             // Write the file
-            dos.writeBytes(boundary + "\r\n");
-            dos.writeBytes("Content-Disposition: form-data; name=\"fileName\"; filename=\"" + fileToUpload.getName() + "\"\r\n");
+            dos.writeBytes("--" + boundary + "\r\n");
+            dos.writeBytes("Content-Disposition: form-data; name=\"File\"; filename=\"" + fileToUpload.getName() + "\"\r\n");
             dos.writeBytes("Content-Type: application/octet-stream\r\n\r\n");
 
+            // Write the file data
             try (FileInputStream fileInputStream = new FileInputStream(fileToUpload)) {
                 byte[] buffer = new byte[4096];
                 int bytesRead;
@@ -64,29 +62,33 @@ public class UploadAsyncTask extends AsyncTask {
                 }
             }
 
-            dos.writeBytes("\r\n--"+ boundary + "--\r\n");
+            // Close the file part
+            dos.writeBytes("\r\n");
+
+            // Add the boundary end to finish the request
+            dos.writeBytes("--" + boundary + "--\r\n");
             dos.flush();
             dos.close();
 
-        // Get the response from the server
-        int responseCode = connection.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            InputStream responseStream = connection.getInputStream();
-            reader = new BufferedReader(new InputStreamReader(responseStream));
-            StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
+            // Get the response from the server
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                InputStream responseStream = connection.getInputStream();
+                reader = new BufferedReader(new InputStreamReader(responseStream));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+                return response.toString();
+            } else {
+                throw new IOException("Server returned non-OK status: " + responseCode);
             }
-            return response.toString();
-        } else {
-            throw new IOException("Server returned non-OK status: " + responseCode);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
-    } catch (Exception e) {
-        e.printStackTrace();
-        return null;
     }
-}
 
     @Override
     protected void onPostExecute(String result) {

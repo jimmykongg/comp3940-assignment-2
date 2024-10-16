@@ -9,9 +9,13 @@ public class Activity {
    public Activity() {
    }
    public void onCreate() {
-      // CHANGE LOCALHOST FOR TYPE
-      // TO TOMCAT IF USING TOMCAT SERVER
+      // CHANGE LOCALHOST FOR TYPE TO TOMCAT IF USING TOMCAT SERVER
+      // FOR TOMCAT, please change 8083 to Tomcat port
+//      String uploadUrl = "http://localhost:8083/upload/upload";
+      // FOR NATIVE, please change to native port
       String uploadUrl = "http://localhost:8999/upload";
+
+
       String filePath = "src/main/java/ConsoleApp/AndroidLogo.png";
       // Gather the caption and date for the upload
       String caption = "TESTING final" +

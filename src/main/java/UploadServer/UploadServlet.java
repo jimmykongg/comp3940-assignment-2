@@ -51,7 +51,7 @@ public class UploadServlet extends HttpServlet {
 
 
    static final String CONTENT_TYPE = "Content-Type: multipart/form-data; boundary=";
-   static final String CONTENT_DISPOSITION_FILENAME="Content-Disposition: form-data; name=\"fileName\"; filename=\"";
+   static final String CONTENT_DISPOSITION_FILENAME="Content-Disposition: form-data; name=\"File\"; filename=\"";
    static final String CONTENT_DISPOSITION_FIELDS = "Content-Disposition: form-data; name=\"";
 
    @Override
